@@ -63,3 +63,21 @@ Prévoir plusieurs Go disponibles. Le premier téléchargement et la compilation
 ## Vérifications effectuées le 19 octobre 2026
 
 75 tests Python réussis sur Windows avec Pygame-CE 2.5.8 et Pymunk 7.3.0, dont 5 tests ajoutés pour les événements Android simulés. Vérification syntaxique Python réussie. Aperçu du rendu paysage inspecté en mode SDL sans écran. Ces vérifications ne remplacent ni la compilation native Android ni un test sur appareil.
+
+## Version 0.2.0 — interface téléphone
+
+- Orientation portrait, accueil Aventure / Mode fun, parcours de 20 niveaux et
+  accès direct au niveau suivant après une victoire.
+- Les menus chantier, boutique et montage PC restent dans la version ordinateur.
+  Le format de sauvegarde existant est conservé, y compris la progression et les
+  tentatives suspendues.
+- Un seul `display.flip()` par image complète : suppression de l'alternance
+  avec/sans barre tactile. Cible de 30 images/s en jeu, 15 dans les menus.
+- Canevas 600 × 1080, surface de mise à l'échelle réutilisée, cache de texte
+  limité à 128 entrées et cache de rotations limité à 16 Mio. Visages statiques,
+  sans particules ni simulation d'aperçu de chute. La physique reste inchangée.
+- Validation locale : tests de navigation tactile, reprise, mise en arrière-plan,
+  présentation unique et progression ; rendu de toutes les missions.
+- À vérifier sur téléphone : fluidité avec un bac chargé, lisibilité, glisser /
+  relâcher, reprise après verrouillage. Les mesures sur ordinateur ne préjugent
+  pas du débit réel sur Android.
