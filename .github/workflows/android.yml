@@ -34,6 +34,14 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y git zip unzip autoconf automake libtool pkg-config cmake ninja-build zlib1g-dev libffi-dev libssl-dev libncurses5-dev libncursesw5-dev
           python -m pip install buildozer==1.5.0 Cython==0.29.36 setuptools==69.5.1
+      - name: Test mobile interface
+        env:
+          SDL_VIDEODRIVER: dummy
+          SDL_AUDIODRIVER: dummy
+        run: |
+          python -m pip install pygame-ce==2.5.8 pymunk==7.3.0
+          python -m unittest discover -s tests -p 'test_android.py' -v
+          python -m unittest discover -s tests -p 'test_mobile_polish.py' -v
       - name: Build test APK
         run: buildozer -v android debug
       - name: Prepare upload key

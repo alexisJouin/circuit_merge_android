@@ -70,7 +70,13 @@ class MobileView(WorldView):
         key = level, round(scale, 3), round(math.degrees(angle)/3)*3 % 360
         if key not in self.rotations:
             if level not in self.bases:
-                self.bases[level] = self.sprites.character(level)
+                base = self.sprites.character(level)
+                shadow = pygame.mask.from_surface(base).to_surface(
+                    setcolor=(3,10,18,90),unsetcolor=(0,0,0,0))
+                baked = pygame.Surface((base.get_width()+12,base.get_height()+12),pygame.SRCALPHA)
+                baked.blit(shadow,(6,10))
+                baked.blit(base,(6,6))
+                self.bases[level] = baked
             image = pygame.transform.rotozoom(self.bases[level], -key[2], scale)
             self.rotations[key] = image
             self.cache_bytes += image.get_pitch()*image.get_height()
@@ -83,7 +89,7 @@ class MobileView(WorldView):
 
     def render_mobile(self, a):
         self.buttons.clear()
-        self.canvas.fill(BG)
+        self.canvas.blit(self.menu_background,(0,0)) if hasattr(self,'menu_background') else self.canvas.fill(BG)
         p, e, b = a.profile, a.engine, self.tap
         if a.page == 'home':
             self.label('CIRCUIT', 300, 185, 70)
@@ -171,7 +177,10 @@ class MobileView(WorldView):
         pygame.draw.line(self.canvas,C.RED if e.danger_ratio else (111,82,88),(l+5,dy),(r-5,dy),2)
         for piece in e.pieces.values():
             x,y = point(*piece.body.position)
-            self.sprite(piece.level,x,y,scale,piece.body.angle)
+            # A tiny visual bounce only; physical positions remain unchanged.
+            age = next((fx[4] for fx in self.effects if fx[3]==piece.uid), .45)
+            bounce = 5*math.sin(math.pi*age/.25) if age<.25 else 0
+            self.sprite(piece.level,x,y-bounce,scale,piece.body.angle)
             if piece.uid in getattr(e,'marked',()):
                 pygame.draw.circle(self.canvas,C.ORANGE,(x,y),10,3)
         if a.active and (not mission or e.remaining):
@@ -196,13 +205,115 @@ class MobileView(WorldView):
             b('sound','Son activé' if a.profile.sound else 'Son coupé',(65,780,470,65))
 
 
+
+class PolishedView(MobileView):
+    """Decorations never alter physics. At most eight fusion effects."""
+    def __init__(self):
+        super().__init__()
+        self.menu_background = pygame.Surface((W, H))
+        for y in range(H):
+            t = y/H
+            pygame.draw.line(self.menu_background,
+                             (13+int(7*t), 24+int(10*t), 38+int(16*t)),
+                             (0,y),(W,y))
+        for x,y in ((25,150),(550,340),(28,680),(545,890)):
+            points = [(x,y),(x+22,y),(x+22,y+65),(x+40,y+83)]
+            pygame.draw.lines(self.menu_background,(35,66,80),False,points,2)
+            pygame.draw.circle(self.menu_background,(60,111,121),points[-1],5,2)
+        self.intro_shade = pygame.Surface((W,H))
+        self.intro_shade.fill(BG)
+        self.result_age = 0.
+
+    def consume(self, events):
+        for event in events:
+            if event.kind == 'merge':
+                self.effects.append([event.x,event.y,event.level,event.uid,0.])
+        self.effects = self.effects[-8:]
+
+    def animate(self, dt, engine):
+        super().animate(dt,engine)
+        for effect in self.effects:
+            effect[4] += dt
+        self.effects = [effect for effect in self.effects if effect[4] < .45]
+
+    def tap(self,name,title,rect,primary=False):
+        rect = pygame.Rect(rect)
+        pygame.draw.rect(self.canvas,(5,14,23),rect.move(0,5),border_radius=22)
+        super().tap(name,title,rect,primary)
+        pygame.draw.line(self.canvas,(152,249,216) if primary else (52,76,97),
+                         (rect.left+23,rect.top+2),(rect.right-23,rect.top+2),2)
+
+    def render_mobile(self,a):
+        result = super().render_mobile(a)
+        if a.page == 'map':
+            zones = ('ALIMENTATION','LOGIQUE','MÉMOIRE','CONTRÔLE')
+            self.label(zones[a.map_page],300,155,22,MINT)
+            i = a.next_level()
+            if i//5 == a.map_page:
+                offset = i%5
+                x,y = (220 if offset%2==0 else 380),225+offset*135
+                pygame.draw.circle(self.canvas,C.ORANGE,(x,y),50,3)
+        elif a.page == 'result' and a.engine.outcome == 'won':
+            # Cover the static stars, reveal earned stars in sequence.
+            pygame.draw.rect(self.canvas,BG,(215,660,170,72),border_radius=15)
+            for i in range(3):
+                earned = a.profile.stars[a.engine.index]>i
+                reveal = self.result_age >= .18+i*.22
+                self.star(250+i*50,695,earned and reveal,18)
+            if a.engine.index+1<len(MISSIONS):
+                self.label('Niveau suivant débloqué !',300,745,26,MINT)
+        if a.intro_remaining > 0:
+            self.canvas.blit(self.intro_shade,(0,0))
+            progress = 1-a.intro_remaining/1.2
+            points = [(80,560),(180,560),(220,520),(300,520),(300,460)]
+            pygame.draw.lines(self.canvas,(40,70,87),False,points,5)
+            segments = len(points)-1
+            amount = max(0,min(1,progress/.65))*segments
+            for i in range(segments):
+                if amount<=i: break
+                t = min(1,amount-i)
+                end = (points[i][0]+(points[i+1][0]-points[i][0])*t,
+                       points[i][1]+(points[i+1][1]-points[i][1])*t)
+                pygame.draw.line(self.canvas,MINT,points[i],end,5)
+                pygame.draw.circle(self.canvas,WHITE,(round(end[0]),round(end[1])),5)
+            self.sprite(5,300,380,1.3)
+            if progress>.55:
+                self.label('CIRCUIT MERGE',300,660,52,MINT)
+            self.label('Toucher pour passer',300,940,24,MUTED)
+        return result
+
+    def render_game(self,a):
+        super().render_game(a)
+        if a.mode: return
+        e = a.engine
+        # Small preview above the arena, not a second physics projection.
+        pygame.draw.rect(self.canvas,PANEL,(312,18,110,72),border_radius=16)
+        self.label('ENSUITE',367,32,20,MUTED)
+        icon = self.sprites.get(e.next_level,18)
+        self.canvas.blit(icon,icon.get_rect(center=(367,63)))
+        scale,ox,oy = a.arena_transform()
+        previous_clip = self.canvas.get_clip()
+        self.canvas.set_clip(pygame.Rect(24,230,552,695))
+        for x,y,level,uid,age in self.effects:
+            x,y = round(ox+x*scale),round(oy+y*scale)
+            t = age/.45
+            color = tuple(round(c*(1-t)+b*t) for c,b in zip(MINT,BG))
+            pygame.draw.circle(self.canvas,color,(x,y),round(15+35*t),2)
+            for i in range(6):
+                angle = i*math.tau/6
+                radius = 18+42*t
+                pos = round(x+math.cos(angle)*radius),round(y+math.sin(angle)*radius)
+                pygame.draw.circle(self.canvas,color,pos,max(1,round(3*(1-t))))
+        self.canvas.set_clip(previous_clip)
+
 class AndroidApplication(ProjectApplication):
     def __init__(self,**kwargs):
+        self.intro_remaining = 0.
         self.mobile_ready = False
         self.suspended = False
         self.finger = self.pointer_button = None
         super().__init__(**kwargs)
-        self.view = MobileView()
+        self.view = PolishedView()
         self.page = 'home'
         self.map_page = self.next_level()//5
         self.mobile_ready = True
@@ -312,6 +423,11 @@ class AndroidApplication(ProjectApplication):
         else:
             pos=event.pos
         logical=self.logical_position(pos)
+        if self.intro_remaining > 0:
+            if down:
+                self.intro_remaining = 0.
+                self._cancel_pointer()
+            return
         if down:
             self.pointer_button=next((name for name,rect in self.view.buttons.items() if rect.collidepoint(logical)),None)
             if self.pointer_button is None and self.active:
@@ -328,7 +444,14 @@ class AndroidApplication(ProjectApplication):
 
     def update(self,elapsed):
         if not self.suspended:
+            dt = min(.1,max(0,elapsed))
+            self.intro_remaining = max(0,self.intro_remaining-dt)
+            before = self.page
             super().update(elapsed)
+            if self.page == 'result':
+                self.view.result_age = 0. if before != 'result' else self.view.result_age+dt
+            else:
+                self.view.result_age = 0.
 
     def draw(self):
         if not getattr(self,'mobile_ready',False) or self.suspended:
@@ -361,4 +484,5 @@ def launch_android():
     app=AndroidApplication(save_path=folder/'project_q_v3.json')
     app.screen=pygame.display.set_mode((0,0),pygame.FULLSCREEN)
     app.fullscreen=True
+    app.intro_remaining=1.2
     app.run()
