@@ -30,13 +30,14 @@ class Pygame2Recipe(CompiledComponentsPythonRecipe):
         super().prebuild_arch(arch)
         with current_directory(self.get_build_dir(arch.arch)):
             # Android uses the upstream SDL2 setup.py path, not desktop Meson.
+            # Legacy backend keeps setup.py imports (buildconfig) on sys.path.
             # Preserve project metadata: buildconfig.get_version reads it.
             with open('pyproject.toml', encoding='utf-8') as stream:
                 pyproject = stream.read()
             build_system = (
                 '[build-system]\n'
                 'requires = ["setuptools", "wheel", "Cython==3.2.9"]\n'
-                'build-backend = "setuptools.build_meta"\n\n'
+                'build-backend = "setuptools.build_meta:__legacy__"\n\n'
             )
             pyproject, count = re.subn(
                 r'(?ms)^\[build-system\][ \t]*\n.*?(?=^\[|\Z)',
