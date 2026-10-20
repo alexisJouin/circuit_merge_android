@@ -1,3 +1,4 @@
+import re
 from os.path import join
 
 from pythonforandroid.recipe import CompiledComponentsPythonRecipe
@@ -29,8 +30,23 @@ class Pygame2Recipe(CompiledComponentsPythonRecipe):
         super().prebuild_arch(arch)
         with current_directory(self.get_build_dir(arch.arch)):
             # Android uses the upstream SDL2 setup.py path, not desktop Meson.
-            with open('pyproject.toml', 'w') as stream:
-                stream.write('[build-system]\nrequires = ["setuptools", "wheel", "Cython==3.2.9"]\nbuild-backend = "setuptools.build_meta"\n')
+            # Preserve project metadata: buildconfig.get_version reads it.
+            with open('pyproject.toml', encoding='utf-8') as stream:
+                pyproject = stream.read()
+            build_system = (
+                '[build-system]\n'
+                'requires = ["setuptools", "wheel", "Cython==3.2.9"]\n'
+                'build-backend = "setuptools.build_meta"\n\n'
+            )
+            pyproject, count = re.subn(
+                r'(?ms)^\[build-system\][ \t]*\n.*?(?=^\[|\Z)',
+                lambda match: build_system,
+                pyproject,
+            )
+            if count != 1:
+                raise ValueError("Expected one pygame build-system table")
+            with open('pyproject.toml', 'w', encoding='utf-8') as stream:
+                stream.write(pyproject)
             setup_template = open(join("buildconfig", "Setup.Android.SDL2.in")).read()
             env = self.get_recipe_env(arch)
             env['ANDROID_ROOT'] = join(self.ctx.ndk.sysroot, 'usr')
