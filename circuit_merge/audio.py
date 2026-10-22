@@ -71,8 +71,9 @@ class Audio:
             return
         folder = Path(__file__).resolve().parent / "assets" / "audio"
         if path is None:
-            path = next((folder / name for name in ("main_theme.ogg", "main_theme.mp3")
-                         if (folder / name).is_file()), None)
+            candidates = (folder / "main_theme.ogg", folder / "main_theme.mp3",
+                          Path(__file__).resolve().parent.parent / "music" / "Tetsuo_TheIronMan.mp3")
+            path = next((candidate for candidate in candidates if candidate.is_file()), None)
         if path is None:
             self.music_error = "Musique absente."
             return

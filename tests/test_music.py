@@ -39,6 +39,16 @@ class MusicTests(unittest.TestCase):
         self.audio.close()
         self.assertFalse(self.audio.music_loaded)
 
+    def test_bundled_mp3_loads_outside_project_directory(self):
+        previous = Path.cwd()
+        try:
+            os.chdir(self.folder.name)
+            self.audio.start_music()
+            self.assertTrue(self.audio.music_loaded, self.audio.music_error)
+            self.assertTrue(pygame.mixer.music.get_busy())
+        finally:
+            os.chdir(previous)
+
     def test_mute_background_and_resume_do_not_restart_track(self):
         with patch("pygame.mixer.music.play") as play, \
              patch("pygame.mixer.music.unpause") as unpause:
