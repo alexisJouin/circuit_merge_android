@@ -70,14 +70,14 @@ class MobileView(WorldView):
         key = level, round(scale, 3), round(math.degrees(angle)/3)*3 % 360
         if key not in self.rotations:
             if level not in self.bases:
-                base = self.sprites.character(level)
+                base = self.sprites.character(level, high_resolution=True)
                 shadow = pygame.mask.from_surface(base).to_surface(
                     setcolor=(3,10,18,90),unsetcolor=(0,0,0,0))
-                baked = pygame.Surface((base.get_width()+12,base.get_height()+12),pygame.SRCALPHA)
-                baked.blit(shadow,(6,10))
-                baked.blit(base,(6,6))
+                baked = pygame.Surface((base.get_width()+24,base.get_height()+24),pygame.SRCALPHA)
+                baked.blit(shadow,(12,20))
+                baked.blit(base,(12,12))
                 self.bases[level] = baked
-            image = pygame.transform.rotozoom(self.bases[level], -key[2], scale)
+            image = pygame.transform.rotozoom(self.bases[level], -key[2], key[1]/2)
             self.rotations[key] = image
             self.cache_bytes += image.get_pitch()*image.get_height()
             while self.cache_bytes > 16*1024*1024 and len(self.rotations) > 1:
@@ -318,6 +318,7 @@ class AndroidApplication(ProjectApplication):
         self.map_page = self.next_level()//5
         self.mobile_ready = True
         self._scaled = None
+        self.audio.start_music()
         self.draw()
 
     def next_level(self):
@@ -391,9 +392,9 @@ class AndroidApplication(ProjectApplication):
             self._cancel_pointer(); self.accumulator=0
             if self.active:
                 self.action('pause')
-            self.suspended=True; self.save(); return
+            self.suspended=True; self.audio.suspend(); self.save(); return
         if event.type in foregrounds:
-            self.suspended=False; return
+            self.suspended=False; self.audio.resume(); return
         if event.type==pygame.QUIT:
             self.save(); self.running=False; return
         if event.type==pygame.KEYDOWN:
@@ -474,7 +475,7 @@ class AndroidApplication(ProjectApplication):
                     self.handle_event(event)
                 self.update(elapsed); self.draw(); count+=1
         finally:
-            self.save(); pygame.quit()
+            self.save(); self.audio.close(); pygame.quit()
 
 
 def launch_android():

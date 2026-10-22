@@ -150,12 +150,14 @@ class SpriteCache:
         return self.bases[level]
 
     def character(self, level: int, personality: Personality | None = None,
-                  expression: str = "idle", gaze=(0, 0)) -> pygame.Surface:
+                  expression: str = "idle", gaze=(0, 0), *, high_resolution: bool = False) -> pygame.Surface:
         """Sprite à taille physique : 1 pixel logique = 1 unité Pymunk."""
         surface = self.base(level).copy()
         center = surface.get_width() / 2, surface.get_height() / 2
         draw_face(surface, geometry_for(level).face, center, personality or self.neutral,
                   expression, gaze, 2)
+        if high_resolution:
+            return surface
         return pygame.transform.smoothscale(surface, (surface.get_width() // 2, surface.get_height() // 2))
 
     def get(self, level: int, half_side: int | None = None) -> pygame.Surface:

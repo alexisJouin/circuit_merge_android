@@ -7,7 +7,10 @@ on:
       - 'buildozer.spec'
       - 'android/**'
       - 'circuit_merge/**'
+      - 'music/**'
       - 'main.py'
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
   workflow_dispatch:
     inputs:
       release:
@@ -42,6 +45,7 @@ jobs:
           python -m pip install pygame-ce==2.5.8 pymunk==7.3.0
           python -m unittest discover -s tests -p 'test_android.py' -v
           python -m unittest discover -s tests -p 'test_mobile_polish.py' -v
+          python -m unittest discover -s tests -p 'test_music.py' -v
       - name: Build test APK
         run: buildozer -v android debug
       - name: Prepare upload key
