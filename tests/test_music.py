@@ -86,6 +86,27 @@ class MusicTests(unittest.TestCase):
         silent.close()
         self.assertFalse(silent.available)
 
+class MusicDiscoveryTests(unittest.TestCase):
+    def test_replacement_names_extensions_and_priority(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            music = root / "music"
+            music.mkdir()
+            (music / "notes.txt").touch()
+            (music / "fake.mp3").mkdir()
+            self.assertIsNone(Audio.find_music(root))
+            later = music / "z-new-track.ogg"
+            later.touch()
+            first = music / "a-new-track.MP3"
+            first.touch()
+            self.assertEqual(Audio.find_music(root), first)
+            first.unlink()
+            self.assertEqual(Audio.find_music(root), later)
+            preferred = root / "circuit_merge" / "assets" / "audio" / "main_theme.mp3"
+            preferred.parent.mkdir(parents=True)
+            preferred.touch()
+            self.assertEqual(Audio.find_music(root), preferred)
+
 class ArtworkTests(unittest.TestCase):
     def test_hd_source_preserves_center_and_alpha_for_all_components(self):
         sprites = SpriteCache()

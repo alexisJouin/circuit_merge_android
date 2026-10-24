@@ -65,15 +65,28 @@ class Audio:
         self._enabled = bool(value)
         self._sync_music()
 
+    @staticmethod
+    def find_music(root: Path | None = None) -> Path | None:
+        """Prefer an explicit main theme, then the first music file by name."""
+        root = root if root is not None else Path(__file__).resolve().parent.parent
+        folder = root / "circuit_merge" / "assets" / "audio"
+        preferred = (folder / "main_theme.ogg", folder / "main_theme.mp3")
+        for candidate in preferred:
+            if candidate.is_file():
+                return candidate
+        music = root / "music"
+        if not music.is_dir():
+            return None
+        return next(iter(sorted(
+            (p for p in music.iterdir() if p.is_file() and p.suffix.lower() in (".mp3", ".ogg")),
+            key=lambda p: (p.name.casefold(), p.name))), None)
+
     def start_music(self, path: Path | None = None) -> None:
         """Stream a replaceable local track; never decode the whole song to RAM."""
         if not self.available or self.music_loaded:
             return
-        folder = Path(__file__).resolve().parent / "assets" / "audio"
         if path is None:
-            candidates = (folder / "main_theme.ogg", folder / "main_theme.mp3",
-                          Path(__file__).resolve().parent.parent / "music" / "Tetsuo_TheIronMan.mp3")
-            path = next((candidate for candidate in candidates if candidate.is_file()), None)
+            path = self.find_music()
         if path is None:
             self.music_error = "Musique absente."
             return
